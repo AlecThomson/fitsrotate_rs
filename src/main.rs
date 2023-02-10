@@ -1,52 +1,36 @@
 use fitsio::{FitsFile};
 use fitsio::images::{ImageType, ImageDescription};
-// use fitsio::hdu::{HduInfo, FitsHdu};
-use ndarray::{ArrayD, Ix4, Ix3, Array};
+use ndarray::{ArrayD};
 use std::env;
 use std::path::Path;
 
-fn rotate_fits_cube_axes_4d(fits_cube: ArrayD<f32>) -> ArrayD<f32> {
-    let fits_cube_4d = fits_cube.into_dimensionality::<Ix4>().unwrap();
-    // Order of axes is (chan, stokes, y, x) - (0, 1, 2, 3)
-    // Rotate to (stokes, y, x, chan) - (1, 2, 3, 0)
-    let rotated_fits_cube = fits_cube_4d.permuted_axes((1, 2, 3, 0));
-    return rotated_fits_cube.into_dimensionality().unwrap()
-}
-
-fn rotate_fits_cube_axes_3d(fits_cube: ArrayD<f32>) -> ArrayD<f32> {
-    // Order of axes is (chan, y, x) - (0, 1, 2)
-    // Rotate to (y, x, chan) - (1, 2, 0)
-    let fits_cube_3d = fits_cube.into_dimensionality::<Ix3>().unwrap();
-    let rotated_fits_cube = fits_cube_3d.permuted_axes((1, 2, 0));
-    return rotated_fits_cube.into_dimensionality().unwrap()
-}
-
 fn fits_index_to_array_index(fits_index: usize, naxis: usize) -> usize {
     let range = (0..(naxis as i32)).rev();
-    let ret = Vec::from_iter(range)[fits_index];
+    let ret = Vec::from_iter(range)[fits_index-1];
+    println!("fits_index_to_array_index: {} -> {}", fits_index, ret);
     return ret as usize;
 }
 
-fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile) -> ArrayD<f32> {
+fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile) -> (ArrayD<f32>, usize) {
     let shape = fits_cube.shape();
     let axes: Vec<usize> = (0..shape.len()).collect();
     // Find the axis that corresponds to the frequency axis
-    for i in 0..shape.len() {
-        let card = "CTYPE".to_owned() + &(i + 1).to_string();
+    for fits_idx in 1..shape.len()+1 {
+        let card = "CTYPE".to_owned() + &fits_idx.to_string();
         let hdu = fits_file.hdu(0).unwrap();
         let head_val: String = hdu.read_key(fits_file, &card).unwrap();
         if head_val == "FREQ" {
-            println!("Found frequency axis at index {}", i);
+            println!("Found frequency axis at index {}", fits_idx);
             let mut new_axes = axes.clone();
-            let idx = fits_index_to_array_index(i, shape.len());
+            let idx = fits_index_to_array_index(fits_idx, shape.len());
             new_axes.remove(idx);
             new_axes.push(idx);
             println!("New axes: {:?}", new_axes);
             let rotated_fits_cube = fits_cube.permuted_axes(new_axes);
-            return rotated_fits_cube.into_dimensionality().unwrap();
+            return (rotated_fits_cube.into_dimensionality().unwrap(), fits_idx);
         }
         else {
-            println!("Found axis {} with CTYPE {}", i, head_val);
+            println!("Found axis {} with CTYPE {}", fits_idx, head_val);
         }
     }
     panic!("Could not find frequency axis");
@@ -55,15 +39,11 @@ fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile) -> Ar
 fn read_fits_cube(filename: &str) -> (ArrayD<f32>, FitsFile) {
     let mut fits_file = FitsFile::open(filename).unwrap();
     let hdu = fits_file.primary_hdu().unwrap();
-    // if let HduInfo::ImageInfo { shape, .. } = &hdu.info {
-    //     println!("Image is {}-dimensional", shape.len());
-    //     println!("Found image with shape {:?}", shape);
-    // }
     let data = hdu.read_image(&mut fits_file).unwrap();
     return (data, fits_file);
 }
 
-fn write_fits_cube(filename: &str, fits_cube: ArrayD<f32>, overwrite: bool) {
+fn write_fits_cube(filename: &str, fits_cube: ArrayD<f32>, old_spec_idx: usize, mut old_file: FitsFile, overwrite: bool) {
     // Check if file exists
     if Path::new(filename).exists() {
         if overwrite {
@@ -81,8 +61,33 @@ fn write_fits_cube(filename: &str, fits_cube: ArrayD<f32>, overwrite: bool) {
     let mut fits_file = FitsFile::create(filename)
     .with_custom_primary(&description)
     .open().unwrap();
-    // let hdu = fits_file.create_image("EXTNAME".to_string(), &description).unwrap();
+
     let hdu = fits_file.hdu(0).unwrap();
+    hdu.copy_to(&mut old_file, &mut fits_file).unwrap();
+
+    let new_spec_idx: usize = 1;
+    let shape = fits_cube.shape();
+    // Swap the CTYPE and CRVAL for the spectral axis
+
+    for card_stub in ["CTYPE", "CRVAL", "CDELT", "CRPIX", "CUNIT"] {
+        for fits_idx in 1..shape.len()+1 {
+            if fits_idx == old_spec_idx{
+                let old_card = card_stub.to_owned() + &fits_idx.to_string();
+                let new_card = card_stub.to_owned() + &new_spec_idx.to_string();
+                let head_val: String = hdu.read_key(&mut old_file, &old_card).unwrap();
+                hdu.write_key(&mut fits_file, &new_card, head_val).unwrap();
+            }
+            else if fits_idx == new_spec_idx {
+                let old_card = card_stub.to_owned() + &fits_idx.to_string();
+                let new_card = card_stub.to_owned() + &old_spec_idx.to_string();
+                let head_val: String = hdu.read_key(&mut old_file, &old_card).unwrap();
+                hdu.write_key(&mut fits_file, &new_card, head_val).unwrap();
+            }
+            else {
+                continue;
+            }
+        }
+    }
     hdu.write_image(&mut fits_file, &fits_cube.into_raw_vec()).unwrap();
 }
 
@@ -92,22 +97,22 @@ fn main() {
         println!("Usage: {} <filename> ", args[0]);
         return;
     }
+
     let filename = &args[1];
-    let reader = read_fits_cube(filename);
-    let fits_cube = reader.0;
-    let mut fits_file = reader.1;
+    let (fits_cube, mut fits_file) = read_fits_cube(filename);
+
     println!("Original FITS cube shape: {:?}", fits_cube.shape());
-    let rotated_fits_cube = rotate_fits_cube_axes(fits_cube.clone(), &mut fits_file);
-    // // Check if the FITS cube is 3D or 4D
-    // let rotated_fits_cube = match fits_cube.ndim() {
-    //     3 => rotate_fits_cube_axes_3d(fits_cube.clone()),
-    //     4 => rotate_fits_cube_axes_4d(fits_cube.clone()),
-    //     _ => panic!("FITS cube must be 3D or 4D"),
-    // };
+    let (rotated_fits_cube, old_spec_idx ) = rotate_fits_cube_axes(fits_cube.clone(), &mut fits_file);
     println!("Original FITS cube shape: {:?}", fits_cube.shape());
     println!("Rotated FITS cube shape: {:?}", rotated_fits_cube.shape());
     let out_filename = filename.replace(".fits", ".rot.fits");
-    write_fits_cube(&out_filename, rotated_fits_cube, true);
+    write_fits_cube(
+        &out_filename,
+        rotated_fits_cube,
+        old_spec_idx,
+        fits_file,
+        true
+    );
     println!("Wrote rotated FITS cube to {}", out_filename);
     println!("Done!");
 }
