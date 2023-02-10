@@ -7,4 +7,6 @@ edition = "2021"
 
 [dependencies]
 ndarray = "0.15"
-fitsio = { git = "https://github.com/simonrw/rust-fitsio", features = ["array"]}
+fitsio = { path = "../rust-fitsio/fitsio", features = ["array"]}
+fitsio-sys = { path = "../rust-fitsio/fitsio-sys" }
+fitsio-derive = { path = "../rust-fitsio/fitsio-derive" }
