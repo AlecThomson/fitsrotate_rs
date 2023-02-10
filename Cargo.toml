@@ -1,6 +1,6 @@
 [package]
 name = "fitsrotate_rs"
-version = "0.0.0"
+version = "0.0.1"
 edition = "2021"
 authors = ["Alec Thomson"]
 description = "Rotate FITS images"
@@ -13,3 +13,8 @@ repository = "https://github.com/AlecThomson/fitsrotate_rs"
 [dependencies]
 ndarray = "0.15"
 fitsio = { git = "https://github.com/AlecThomson/rust-fitsio.git", features = ["array"], version="0.21.1"}
+clap = { version = "4.1.4", features = ["derive"] }
+
+[[bin]]
+name = "fitsrotate_rs"
+path = "src/main.rs"

@@ -1,10 +1,11 @@
 #![crate_name = "fitsrotate_rs"]
+#![allow(unused)]
 use fitsio::images::{ImageDescription, ImageType};
 #[doc(inline)]
 use fitsio::FitsFile;
 use ndarray::ArrayD;
-use std::env;
 use std::path::Path;
+use clap::Parser;
 
 /// Convert a FITS index to an array index
 ///
@@ -191,15 +192,22 @@ fn write_fits_cube(
         .unwrap();
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        println!("Usage: {} <filename> ", args[0]);
-        return;
-    }
+/// Simple program rotating the axes of a FITS cube
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// The FITS file
+    filename: String,
+    /// Overwrite the FITS file if it already exists
+    #[arg(short='o', long="overwrite")]
+    overwrite: bool,
+}
 
-    let filename = &args[1];
-    let (fits_cube, mut fits_file) = read_fits_cube(filename);
+fn main() {
+    let args = Args::parse();
+
+    let filename = args.filename;
+    let (fits_cube, mut fits_file) = read_fits_cube(&filename);
 
     println!("Original FITS cube shape: {:?}", fits_cube.shape());
     let (rotated_fits_cube, old_spec_idx) =
@@ -212,7 +220,7 @@ fn main() {
         rotated_fits_cube,
         old_spec_idx,
         fits_file,
-        true,
+        args.overwrite,
     );
     println!("Wrote rotated FITS cube to {}", out_filename);
     println!("Done!");
