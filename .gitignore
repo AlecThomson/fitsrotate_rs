@@ -14,3 +14,7 @@ Cargo.lock
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 .vscode/launch.json
+test_2d.fits
+test_3d.fits
+test_4d.fits
+test_4d.rot.fits
