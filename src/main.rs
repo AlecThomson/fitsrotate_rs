@@ -56,7 +56,7 @@ fn write_fits_cube(filename: &str, fits_cube: ArrayD<f32>, old_spec_idx: usize, 
 
     let description = ImageDescription {
         data_type: ImageType::Double,
-        dimensions: &fits_cube.shape().to_vec(),
+        dimensions: &fits_cube.shape(),
     };
     let mut fits_file = FitsFile::create(filename)
     .with_custom_primary(&description)
