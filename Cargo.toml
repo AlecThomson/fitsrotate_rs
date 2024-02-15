@@ -12,7 +12,7 @@ repository = "https://github.com/AlecThomson/fitsrotate_rs"
 
 [dependencies]
 ndarray = "0.15"
-fitsio = { git = "https://github.com/AlecThomson/rust-fitsio.git", features = ["array"], version="0.21.1"}
+fitsio = {features = ["array"], version="0.21.2"}
 clap = { version = "4.1.4", features = ["derive"] }
 
 [[bin]]
