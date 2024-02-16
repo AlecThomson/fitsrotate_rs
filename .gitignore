@@ -19,3 +19,4 @@ test_3d.fits
 test_4d.fits
 test_4d.rot.fits
 *.fits
+freq.txt

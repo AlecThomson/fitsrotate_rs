@@ -181,7 +181,7 @@ fn write_fits_cube(
             hdu.write_key(&mut fits_file, &new_card, head_val).unwrap();
             }  
     }
-    return hdu.write_image(&mut fits_file, &fits_cube.into_raw_vec());
+    hdu.write_image(&mut fits_file, &fits_cube.into_raw_vec())
 }
 
 fn parse_mode(mode: &str, cube: &ArrayD<f32>) -> Result<Vec<usize>,Error> {
@@ -195,7 +195,7 @@ fn parse_mode(mode: &str, cube: &ArrayD<f32>) -> Result<Vec<usize>,Error> {
     let mode_split: Vec<&str> = mode.split("").collect();
     for m in mode_split {
         // Catch empty strings
-        if m == "" {
+        if m.is_empty() {
             continue;
         }
         match m.parse::<usize>() {
