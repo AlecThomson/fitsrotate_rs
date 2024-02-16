@@ -80,7 +80,7 @@ struct RotatedFitsCube {
 /// let mut fits_file = FitsFile::open(filename).unwrap();
 /// let (rotated_fits_cube, freq_axis) = rotate_fits_cube_axes(fits_cube, &mut fits_file);
 /// ```
-fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile, mode: &Vec<usize>) -> ArrayD<f32> {
+fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile, mode: &[usize]) -> ArrayD<f32> {
     let shape = fits_cube.shape();
     let old_axes: Vec<usize> = (0..shape.len()).collect();
     let old_mode:Vec<usize> = (1..shape.len()+1).collect();
@@ -142,7 +142,7 @@ fn check_file_exists(filename: &str, overwrite: bool) -> Result<bool, Error> {
 fn write_fits_cube(
     filename: &str,
     fits_cube: ArrayD<f32>,
-    mode: &Vec<usize>,
+    mode: &[usize],
     mut old_file: FitsFile,
     overwrite: bool,
 ) -> Result<&'static str, Error>{
