@@ -88,8 +88,8 @@ fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile, mode:
 
     // Just shift the data here
     println!("New axes: {:?}", new_axes);
-    let rotated_fits_cube = fits_cube.permuted_axes(new_axes);
-    rotated_fits_cube
+    
+    fits_cube.permuted_axes(new_axes)
 }
 
 /// Read a FITS cube
