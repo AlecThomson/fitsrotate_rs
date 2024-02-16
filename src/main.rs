@@ -145,11 +145,11 @@ fn write_fits_cube(
     mode: &[usize],
     mut old_file: FitsFile,
     overwrite: bool,
-) -> Result<&'static str, Error>{
+) -> Result<(), Error>{
     // Check if file exists
     if Path::new(filename).exists() {
         if overwrite {
-            std::fs::remove_file(filename).unwrap();
+            std::fs::remove_file(filename)?;
             println!("File {} already exists, overwriting", filename);
         } else {
             return Err(Error::ExistingFile(filename.to_string()));
@@ -162,11 +162,10 @@ fn write_fits_cube(
     };
     let mut fits_file = FitsFile::create(filename)
         .with_custom_primary(&description)
-        .open()
-        .unwrap();
+        .open()?;
 
-    let hdu = fits_file.hdu(0).unwrap();
-    hdu.copy_to(&mut old_file, &mut fits_file).unwrap();
+    let hdu = fits_file.hdu(0)?;
+    // hdu.copy_to(&mut old_file, &mut fits_file)?;
 
     let shape = fits_cube.shape();
     let old_axes: Vec<usize> = (0..shape.len()).collect();
@@ -182,24 +181,7 @@ fn write_fits_cube(
             hdu.write_key(&mut fits_file, &new_card, head_val).unwrap();
             }  
     }
-        //     if fits_idx == old_spec_idx {
-        //         let old_card = card_stub.to_owned() + &fits_idx.to_string();
-        //         let new_card = card_stub.to_owned() + &new_spec_idx.to_string();
-        //         let head_val: String = hdu.read_key(&mut old_file, &old_card).unwrap();
-        //         hdu.write_key(&mut fits_file, &new_card, head_val).unwrap();
-        //     } else if fits_idx == new_spec_idx {
-        //         let old_card = card_stub.to_owned() + &fits_idx.to_string();
-        //         let new_card = card_stub.to_owned() + &old_spec_idx.to_string();
-        //         let head_val: String = hdu.read_key(&mut old_file, &old_card).unwrap();
-        //         hdu.write_key(&mut fits_file, &new_card, head_val).unwrap();
-        //     } else {
-        //         continue;
-        //     }
-        // }
-    // };
-    hdu.write_image(&mut fits_file, &fits_cube.into_raw_vec())
-        .unwrap();
-    Ok("Wow")
+    return hdu.write_image(&mut fits_file, &fits_cube.into_raw_vec());
 }
 
 fn parse_mode(mode: &str, cube: &ArrayD<f32>) -> Result<Vec<usize>,Error> {
@@ -236,7 +218,7 @@ struct Args {
     /// The FITS file
     filename: String,
     /// Mode of rotation - a sequence of integers specifying the order of the axes
-    /// (e.g. 3,2,1 for a 3D cube)
+    /// (e.g. 321 for a 3D cube)
     mode: String,
     /// Overwrite the FITS file if it already exists
     #[arg(short='o', long="overwrite")]
