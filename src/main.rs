@@ -51,7 +51,7 @@ fn fits_index_to_array_index(fits_index: usize, naxis: usize) -> usize {
     let range = (0..(naxis as i32)).rev();
     let ret = Vec::from_iter(range)[fits_index - 1];
     println!("fits_index_to_array_index: {} -> {}", fits_index, ret);
-    return ret as usize;
+    ret as usize
 }
 
 struct RotatedFitsCube {
@@ -90,7 +90,7 @@ fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile) -> Re
         let head_val: String = hdu.read_key(fits_file, &card)?;
         if head_val == "FREQ" {
             println!("Found frequency axis at index {}", fits_idx);
-            let mut new_axes = axes.clone();
+            let mut new_axes = axes;
             let idx = fits_index_to_array_index(fits_idx, shape.len());
             new_axes.remove(idx);
             new_axes.push(idx);
@@ -98,7 +98,7 @@ fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile) -> Re
             let rotated_fits_cube = fits_cube.permuted_axes(new_axes);
             // return Ok((rotated_fits_cube.into_dimensionality().unwrap(), fits_idx))
             // return Ok(FitsCube { data: rotated_fits_cube, file: fits_file } )
-            return Ok(RotatedFitsCube { data: rotated_fits_cube, fits_idx: fits_idx })
+            return Ok(RotatedFitsCube { data: rotated_fits_cube, fits_idx })
         } else {
             println!("Found axis {} with CTYPE {}", fits_idx, head_val);
         }
@@ -129,12 +129,12 @@ fn read_fits_cube(filename: &str) -> (ArrayD<f32>, FitsFile) {
     let mut fits_file = FitsFile::open(filename).unwrap();
     let hdu = fits_file.primary_hdu().unwrap();
     let data = hdu.read_image(&mut fits_file).unwrap();
-    return (data, fits_file);
+    (data, fits_file)
 }
 
 fn check_file_exists(filename: &str, overwrite: bool) -> Result<bool, Error> {
     if ! overwrite && Path::new(filename).exists() {
-        return Err(Error::ExistingFile(format!("{}", filename).to_string()));
+        return Err(Error::ExistingFile(filename.to_string()));
     }
     Ok(true)
 }
@@ -168,13 +168,13 @@ fn write_fits_cube(
             std::fs::remove_file(filename).unwrap();
             println!("File {} already exists, overwriting", filename)
         } else {
-            return Err(Error::ExistingFile(format!("{}", filename).to_string()));
+            return Err(Error::ExistingFile(filename.to_string()));
         }
     }
 
     let description = ImageDescription {
         data_type: ImageType::Double,
-        dimensions: &fits_cube.shape(),
+        dimensions: fits_cube.shape(),
     };
     let mut fits_file = FitsFile::create(filename)
         .with_custom_primary(&description)
@@ -218,7 +218,7 @@ fn parse_mode(mode: &str, cube: &ArrayD<f32>) -> Result<Vec<usize>,Error> {
     }
     // Now check that all elements can be converted to integers
     let mut mode_int: Vec<usize> = Vec::new();
-    let mode_split: Vec<&str> = mode.split(",").collect();
+    let mode_split: Vec<&str> = mode.split(',').collect();
     for m in mode_split {
         match m.parse::<usize>() {
             Ok(m_int) => {
@@ -230,7 +230,7 @@ fn parse_mode(mode: &str, cube: &ArrayD<f32>) -> Result<Vec<usize>,Error> {
         }
     }
 
-    return Ok(mode_int);
+    Ok(mode_int)
 }
 
 /// Simple program rotating the axes of a FITS cube
@@ -271,7 +271,7 @@ fn main() {
     }
 
     println!("Original FITS cube shape: {:?}", fits_cube.shape());
-    let rotated_fits_cube_result = rotate_fits_cube_axes(fits_cube.clone(), &mut fits_file);
+    let rotated_fits_cube_result = rotate_fits_cube_axes(fits_cube, &mut fits_file);
     match rotated_fits_cube_result {
         Ok(rotated_fits_cube_s) => {
             println!("Rotated FITS cube shape: {:?}", rotated_fits_cube_s.data.shape());
