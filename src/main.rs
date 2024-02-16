@@ -210,12 +210,38 @@ fn write_fits_cube(
     Ok("Wow")
 }
 
+fn parse_mode(mode: &str, cube: &ArrayD<f32>) -> Result<Vec<usize>,Error> {
+    // Check that the mode is valid
+    // First check that length of mode is equal to the number of axes in the cube
+    if mode.len() != cube.ndim() {
+        return Err(Error::Message(format!("Mode length {} does not match number of axes in cube ({})", mode.len(), cube.ndim())));
+    }
+    // Now check that all elements can be converted to integers
+    let mut mode_int: Vec<usize> = Vec::new();
+    let mode_split: Vec<&str> = mode.split(",").collect();
+    for m in mode_split {
+        match m.parse::<usize>() {
+            Ok(m_int) => {
+                mode_int.push(m_int);
+            }
+            Err(e) => {
+                return Err(Error::Message(format!("Could not convert mode element {} to integer: {}", m, e)));
+            }
+        }
+    }
+
+    return Ok(mode_int);
+}
+
 /// Simple program rotating the axes of a FITS cube
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// The FITS file
     filename: String,
+    /// Mode of rotation - a sequence of integers specifying the order of the axes
+    /// (e.g. 3,2,1 for a 3D cube)
+    mode: String,
     /// Overwrite the FITS file if it already exists
     #[arg(short='o', long="overwrite")]
     overwrite: bool,
@@ -234,6 +260,15 @@ fn main() {
         }
     }
     let (fits_cube, mut fits_file) = read_fits_cube(&filename);
+
+    let mode_vec = parse_mode(&args.mode, &fits_cube);
+    match mode_vec {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("{}", e);
+            return;
+        }
+    }
 
     println!("Original FITS cube shape: {:?}", fits_cube.shape());
     let rotated_fits_cube_result = rotate_fits_cube_axes(fits_cube.clone(), &mut fits_file);
