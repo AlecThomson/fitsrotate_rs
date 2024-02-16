@@ -80,32 +80,16 @@ struct RotatedFitsCube {
 /// let mut fits_file = FitsFile::open(filename).unwrap();
 /// let (rotated_fits_cube, freq_axis) = rotate_fits_cube_axes(fits_cube, &mut fits_file);
 /// ```
-fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile) -> Result<RotatedFitsCube, Error> {
+fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile, mode: &Vec<usize>) -> ArrayD<f32> {
     let shape = fits_cube.shape();
-    let axes: Vec<usize> = (0..shape.len()).collect();
-    // Find the axis that corresponds to the frequency axis 
-    for fits_idx in 1..shape.len() + 1 {
-        let card = "CTYPE".to_owned() + &fits_idx.to_string();
-        let hdu = fits_file.hdu(0).unwrap();
-        let head_val: String = hdu.read_key(fits_file, &card)?;
-        if head_val == "FREQ" {
-            println!("Found frequency axis at index {}", fits_idx);
-            let mut new_axes = axes;
-            let idx = fits_index_to_array_index(fits_idx, shape.len());
-            new_axes.remove(idx);
-            new_axes.push(idx);
-            println!("New axes: {:?}", new_axes);
-            let rotated_fits_cube = fits_cube.permuted_axes(new_axes);
-            // return Ok((rotated_fits_cube.into_dimensionality().unwrap(), fits_idx))
-            // return Ok(FitsCube { data: rotated_fits_cube, file: fits_file } )
-            return Ok(RotatedFitsCube { data: rotated_fits_cube, fits_idx })
-        } else {
-            println!("Found axis {} with CTYPE {}", fits_idx, head_val);
-        }
-    }
-    // Err("Could not find frequency axis".into());
-    // return Err(Error::new("Could not find frequency axis"));
-    panic!("Could not find frequency axis");
+    let old_axes: Vec<usize> = (0..shape.len()).collect();
+    let old_mode:Vec<usize> = (1..shape.len()+1).collect();
+    let new_axes: Vec<usize> = mode.iter().map(|x| x - 1).collect();
+
+    // Just shift the data here
+    println!("New axes: {:?}", new_axes);
+    let rotated_fits_cube = fits_cube.permuted_axes(new_axes);
+    return rotated_fits_cube;
 }
 
 /// Read a FITS cube
@@ -158,7 +142,7 @@ fn check_file_exists(filename: &str, overwrite: bool) -> Result<bool, Error> {
 fn write_fits_cube(
     filename: &str,
     fits_cube: ArrayD<f32>,
-    old_spec_idx: usize,
+    mode: &Vec<usize>,
     mut old_file: FitsFile,
     overwrite: bool,
 ) -> Result<&'static str, Error>{
@@ -166,11 +150,11 @@ fn write_fits_cube(
     if Path::new(filename).exists() {
         if overwrite {
             std::fs::remove_file(filename).unwrap();
-            println!("File {} already exists, overwriting", filename)
+            println!("File {} already exists, overwriting", filename);
         } else {
             return Err(Error::ExistingFile(filename.to_string()));
         }
-    }
+    };
 
     let description = ImageDescription {
         data_type: ImageType::Double,
@@ -184,27 +168,35 @@ fn write_fits_cube(
     let hdu = fits_file.hdu(0).unwrap();
     hdu.copy_to(&mut old_file, &mut fits_file).unwrap();
 
-    let new_spec_idx: usize = 1;
     let shape = fits_cube.shape();
-    // Swap the CTYPE and CRVAL for the spectral axis
-
+    let old_axes: Vec<usize> = (0..shape.len()).collect();
+    let old_mode:Vec<usize> = (1..shape.len()+1).collect();
+    let new_axes: Vec<usize> = mode.iter().map(|x| x - 1).collect();
+    
+    // Swap the keys in the header
     for card_stub in ["CTYPE", "CRVAL", "CDELT", "CRPIX", "CUNIT"] {
         for fits_idx in 1..shape.len() + 1 {
-            if fits_idx == old_spec_idx {
-                let old_card = card_stub.to_owned() + &fits_idx.to_string();
-                let new_card = card_stub.to_owned() + &new_spec_idx.to_string();
-                let head_val: String = hdu.read_key(&mut old_file, &old_card).unwrap();
-                hdu.write_key(&mut fits_file, &new_card, head_val).unwrap();
-            } else if fits_idx == new_spec_idx {
-                let old_card = card_stub.to_owned() + &fits_idx.to_string();
-                let new_card = card_stub.to_owned() + &old_spec_idx.to_string();
-                let head_val: String = hdu.read_key(&mut old_file, &old_card).unwrap();
-                hdu.write_key(&mut fits_file, &new_card, head_val).unwrap();
-            } else {
-                continue;
-            }
-        }
+            let old_card = card_stub.to_owned() + &fits_idx.to_string();
+            let new_card = card_stub.to_owned() + &mode[fits_idx - 1].to_string();
+            let head_val: String = hdu.read_key(&mut old_file, &old_card).unwrap();
+            hdu.write_key(&mut fits_file, &new_card, head_val).unwrap();
+            }  
     }
+        //     if fits_idx == old_spec_idx {
+        //         let old_card = card_stub.to_owned() + &fits_idx.to_string();
+        //         let new_card = card_stub.to_owned() + &new_spec_idx.to_string();
+        //         let head_val: String = hdu.read_key(&mut old_file, &old_card).unwrap();
+        //         hdu.write_key(&mut fits_file, &new_card, head_val).unwrap();
+        //     } else if fits_idx == new_spec_idx {
+        //         let old_card = card_stub.to_owned() + &fits_idx.to_string();
+        //         let new_card = card_stub.to_owned() + &old_spec_idx.to_string();
+        //         let head_val: String = hdu.read_key(&mut old_file, &old_card).unwrap();
+        //         hdu.write_key(&mut fits_file, &new_card, head_val).unwrap();
+        //     } else {
+        //         continue;
+        //     }
+        // }
+    // };
     hdu.write_image(&mut fits_file, &fits_cube.into_raw_vec())
         .unwrap();
     Ok("Wow")
@@ -258,42 +250,35 @@ fn main() {
             eprintln!("Error: {}", e);
             return;
         }
-    }
+    };
     let (fits_cube, mut fits_file) = read_fits_cube(&filename);
 
-    let mode_vec = parse_mode(&args.mode, &fits_cube);
-    match mode_vec {
-        Ok(_) => {}
+    let mode_result = parse_mode(&args.mode, &fits_cube);
+    let mode_vec = match mode_result {
+        Ok(m) => m,
         Err(e) => {
             eprintln!("{}", e);
             return;
         }
-    }
+    };
 
     println!("Original FITS cube shape: {:?}", fits_cube.shape());
-    let rotated_fits_cube_result = rotate_fits_cube_axes(fits_cube, &mut fits_file);
-    match rotated_fits_cube_result {
-        Ok(rotated_fits_cube_s) => {
-            println!("Rotated FITS cube shape: {:?}", rotated_fits_cube_s.data.shape());
-            let write_res = write_fits_cube(
-                &out_filename,
-                rotated_fits_cube_s.data,
-                rotated_fits_cube_s.fits_idx,
-                fits_file,
-                args.overwrite,
-            );
-            match write_res {
-                Ok(_) => {
-                    println!("Wrote rotated FITS cube to {}", out_filename);
-                }
-                Err(e) => {
-                    eprintln!("Error: {}", e);
-                }
-            }
+    let rotated_fits_cube = rotate_fits_cube_axes(fits_cube, &mut fits_file, &mode_vec);
+    println!("Rotated FITS cube shape: {:?}", rotated_fits_cube.shape());
+    let write_res = write_fits_cube(
+        &out_filename,
+        rotated_fits_cube,
+        &mode_vec,
+        fits_file,
+        args.overwrite,
+    );
+    match write_res {
+        Ok(_) => {
+            println!("Wrote rotated FITS cube to {}", out_filename);
         }
         Err(e) => {
             eprintln!("Error: {}", e);
         }
-    }
+    };
     println!("Done!");
 }
