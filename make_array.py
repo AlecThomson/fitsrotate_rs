@@ -45,9 +45,9 @@ def main(
     header["NAXIS"] = num_dimensions
 
     dims = [nchan, nstokes, npix_y, npix_x]
-    types = ["FREQ", "STOKES", "DEC--SIN", "RA--SIN"]
+    types = ["FREQ", "STOKES", "DEC--SIN", "RA---SIN"]
     vals = [1.4e9, 1, 0.0, 0.0]
-    delts = [1e6, 1, -1/3600, 1/3600]
+    delts = [1e6, 1, 1/3600, -1/3600]
     pixs = [1, 1, npix_y//2+1, npix_x//2+1]
     units = ["Hz", "", "deg", "deg"]
 
@@ -68,11 +68,7 @@ def main(
     header["BMIN"] = 10 / 3600
     header["BPA"] = 0.0
     header["EQUINOX"] = 2000.0
-    header["RADESYS"] = "FK5"
-    header["LONPOLE"] = 180.0
-    header["LATPOLE"] = 0.0
     header["RESTFRQ"] = 1.4e9
-    header["SPECSYS"] = "LSRK"
     pprint(header)
 
     # Write to file
