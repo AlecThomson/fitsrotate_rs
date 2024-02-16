@@ -87,9 +87,9 @@ fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile, mode:
     let new_axes: Vec<usize> = mode.iter().map(|x| x - 1).collect();
 
     // Just shift the data here
-    println!("New axes: {:?}", new_axes);
-    
-    fits_cube.permuted_axes(new_axes)
+    let rot_cube = fits_cube.permuted_axes(new_axes);
+    println!("New axes: {:?}", rot_cube.shape());
+    rot_cube
 }
 
 /// Read a FITS cube
@@ -210,8 +210,12 @@ fn parse_mode(mode: &str, cube: &ArrayD<f32>) -> Result<Vec<usize>,Error> {
     }
     // Now check that all elements can be converted to integers
     let mut mode_int: Vec<usize> = Vec::new();
-    let mode_split: Vec<&str> = mode.split(',').collect();
+    let mode_split: Vec<&str> = mode.split("").collect();
     for m in mode_split {
+        // Catch empty strings
+        if m == "" {
+            continue;
+        }
         match m.parse::<usize>() {
             Ok(m_int) => {
                 mode_int.push(m_int);
