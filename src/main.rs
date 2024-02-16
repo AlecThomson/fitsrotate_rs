@@ -54,22 +54,17 @@ fn fits_index_to_array_index(fits_index: usize, naxis: usize) -> usize {
     ret as usize
 }
 
-struct RotatedFitsCube {
-    data: ArrayD<f32>,
-    fits_idx: usize,
-}
-
-/// Rotate the axes of a FITS cube so that the frequency axis is the last axis
+/// Rotate the axes of a FITS cube array given some new ordering
 ///
 /// # Arguments
 ///
 /// * `fits_cube` - The FITS cube
 /// * `fits_file` - The FITS file
+/// * `mode` - The new ordering of the axes
 ///
 /// # Returns
 ///
 /// * `ArrayD<f32>` - The rotated FITS cube
-/// * `usize` - The index of the frequency axis
 ///
 /// # Examples
 ///
@@ -78,7 +73,8 @@ struct RotatedFitsCube {
 /// use fitsrotate_rs::rotate_fits_cube_axes;
 /// let fits_cube = ArrayD::zeros((3, 3, 3));
 /// let mut fits_file = FitsFile::open(filename).unwrap();
-/// let (rotated_fits_cube, freq_axis) = rotate_fits_cube_axes(fits_cube, &mut fits_file);
+/// let mode = [3, 2, 1];
+/// let (rotated_fits_cube, freq_axis) = rotate_fits_cube_axes(fits_cube, &mut fits_file, &mode);
 /// ```
 fn rotate_fits_cube_axes(fits_cube: ArrayD<f32>, fits_file: &mut FitsFile, mode: &[usize]) -> ArrayD<f32> {
     let shape = fits_cube.shape();
@@ -116,6 +112,18 @@ fn read_fits_cube(filename: &str) -> (ArrayD<f32>, FitsFile) {
     (data, fits_file)
 }
 
+
+/// Check if a file exists
+/// 
+/// # Arguments
+/// 
+/// * `filename` - The file to check
+/// * `overwrite` - Overwrite the file if it already exists
+/// 
+/// # Returns
+/// 
+/// * `Result<bool, Error>` - True if the file exists
+/// 
 fn check_file_exists(filename: &str, overwrite: bool) -> Result<bool, Error> {
     if ! overwrite && Path::new(filename).exists() {
         return Err(Error::ExistingFile(filename.to_string()));
@@ -129,7 +137,7 @@ fn check_file_exists(filename: &str, overwrite: bool) -> Result<bool, Error> {
 ///
 /// * `filename` - The FITS file
 /// * `fits_cube` - The FITS cube
-/// * `old_spec_idx` - The index of the frequency axis in the original FITS cube
+/// * `mode` - The new ordering of the axes
 /// * `old_file` - The original FITS file
 /// * `overwrite` - Overwrite the FITS file if it already exists
 ///
@@ -137,7 +145,7 @@ fn check_file_exists(filename: &str, overwrite: bool) -> Result<bool, Error> {
 ///
 /// ```
 /// use fitsrotate_rs::write_fits_cube;
-/// write_fits_cube("test.fits", fits_cube, old_spec_idx, old_file, true);
+/// write_fits_cube("test.fits", fits_cube, mode, old_file, true);
 /// ```
 fn write_fits_cube(
     filename: &str,
@@ -184,6 +192,18 @@ fn write_fits_cube(
     hdu.write_image(&mut fits_file, &fits_cube.into_raw_vec())
 }
 
+
+/// Parse the mode string
+/// 
+/// # Arguments
+/// 
+/// * `mode` - The mode string
+/// * `cube` - The FITS cube
+/// 
+/// # Returns
+/// 
+/// * `Result<Vec<usize>, Error>` - The mode as a vector of integers
+/// 
 fn parse_mode(mode: &str, cube: &ArrayD<f32>) -> Result<Vec<usize>,Error> {
     // Check that the mode is valid
     // First check that length of mode is equal to the number of axes in the cube
