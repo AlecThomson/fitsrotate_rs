@@ -1,7 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Make fake FITS cubes"""
 import dask.array as da
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
+from pprint import pprint
 
 
 def main(
@@ -34,18 +38,24 @@ def main(
             dtype=np.float32
         )
 
+    print(f"Making {num_dimensions}D array with shape {large_array.shape}")
+
     # Create a header
     header = fits.Header()
     header["NAXIS"] = num_dimensions
 
     dims = [nchan, nstokes, npix_y, npix_x]
-    types = ["FREQ", "STOKES", "RA--SIN", "DEC--SIN"]
+    types = ["FREQ", "STOKES", "DEC--SIN", "RA--SIN"]
     vals = [1.4e9, 1, 0.0, 0.0]
     delts = [1e6, 1, -1/3600, 1/3600]
     pixs = [1, 1, npix_y//2+1, npix_x//2+1]
     units = ["Hz", "", "deg", "deg"]
 
     for i, fits_idx in enumerate(range(num_dimensions, 0, -1)):
+        if i == num_dimensions:
+            break
+        if num_dimensions < 4 and i >= 1:
+            i += 1
         header[f"NAXIS{fits_idx}"] = dims[i]
         header[f"CTYPE{fits_idx}"] = types[i]
         header[f"CRVAL{fits_idx}"] = vals[i]
@@ -63,14 +73,17 @@ def main(
     header["LATPOLE"] = 0.0
     header["RESTFRQ"] = 1.4e9
     header["SPECSYS"] = "LSRK"
+    pprint(header)
 
     # Write to file
-    fits.writeto(f"large_{num_dimensions}_array.fits", large_array, header, overwrite=True)
+    outf = f"large_{num_dimensions}_array.fits"
+    print(f"Writing to {outf}")
+    fits.writeto(outf, large_array, header, overwrite=True)
 
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "-n",
         "--num-dimensions",
