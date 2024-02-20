@@ -44,7 +44,7 @@ Options:
 To use the crate in your own Rust development, add the following line to your `Cargo.toml`:
 ```toml
 [dependencies]
-fitsrotate_rs = "0.1.0"
+fitsrotate_rs = "0.1.1"
 ```
 
 ## Contribution
