@@ -26,9 +26,13 @@ jobs:
           - target: x86_64-apple-darwin
             archive: zip
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v3      
+      - name: Install deps
+        run: sudo apt-get update -y && sudo apt-get install libcfitsio-dev -y
       - name: Update rust
         run: rustup update && cargo update -p clap_builder@4.5.1 --precise ver
+      - name: Check rust version
+        run: rustc --version
       - name: Compile and release
         uses: rust-build/rust-build.action@v1.4.4
         env:
@@ -36,3 +40,4 @@ jobs:
         with:
           RUSTTARGET: ${{ matrix.target }}
           ARCHIVE_TYPES: ${{ matrix.archive }}
+        
