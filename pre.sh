@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # Install deps
-sudo apt-get update -y && sudo apt-get install libcfitsio-dev -y
+apk add --no-cache cfitsio
+apk add --no-cache cfitsio-dev
 
 # Update rust
 rustup update
