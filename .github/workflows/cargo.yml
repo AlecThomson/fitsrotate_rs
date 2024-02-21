@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Update rust
-        run: rustup update
+        run: rustup update && cargo update -p clap_builder@4.5.1 --precise ver
       - name: Compile and release
         uses: rust-build/rust-build.action@v1.4.4
         env:
