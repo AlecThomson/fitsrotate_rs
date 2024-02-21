@@ -8,6 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Install deps
+        run: sudo apt-get update -y && sudo apt-get install libcfitsio-dev -y
       - name: Build and publish to crates.io
         uses: katyo/publish-crates@v2
         with:
@@ -30,7 +32,7 @@ jobs:
       - name: Install deps
         run: sudo apt-get update -y && sudo apt-get install libcfitsio-dev -y
       - name: Update rust
-        run: rustup update && cargo update -p clap_builder@4.5.1 --precise ver
+        run: rustup update
       - name: Check rust version
         run: rustc --version
       - name: Compile and release
