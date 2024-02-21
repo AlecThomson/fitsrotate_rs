@@ -41,7 +41,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           PRE_BUILD: pre.sh
-          TOOLCHAIN_VERSION: 1.73.0
+          TOOLCHAIN_VERSION: 1.74
           RUSTTARGET: ${{ matrix.target }}
           ARCHIVE_TYPES: ${{ matrix.archive }}
         
