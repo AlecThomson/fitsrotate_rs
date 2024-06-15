@@ -245,46 +245,27 @@ struct Args {
     overwrite: bool,
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let args = Args::parse();
 
     let filename = args.filename;
     let out_filename = filename.replace(".fits", ".rot.fits");
-    match check_file_exists(&out_filename, args.overwrite) {
-        Ok(_) => {}
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            return;
-        }
-    };
+    let check = check_file_exists(&out_filename, args.overwrite)?;
     let (fits_cube, mut fits_file) = read_fits_cube(&filename);
 
-    let mode_result = parse_mode(&args.mode, &fits_cube);
-    let mode_vec = match mode_result {
-        Ok(m) => m,
-        Err(e) => {
-            eprintln!("{}", e);
-            return;
-        }
-    };
+    let mode_vec = parse_mode(&args.mode, &fits_cube)?;
 
     println!("Original FITS cube shape: {:?}", fits_cube.shape());
     let rotated_fits_cube = rotate_fits_cube_axes(fits_cube, &mut fits_file, &mode_vec);
     println!("Rotated FITS cube shape: {:?}", rotated_fits_cube.shape());
-    let write_res = write_fits_cube(
+    let _ = write_fits_cube(
         &out_filename,
         rotated_fits_cube,
         &mode_vec,
         fits_file,
         args.overwrite,
-    );
-    match write_res {
-        Ok(_) => {
-            println!("Wrote rotated FITS cube to {}", out_filename);
-        }
-        Err(e) => {
-            eprintln!("Error: {}", e);
-        }
-    };
+    )?;
+    println!("Wrote rotated FITS cube to {}", out_filename);
     println!("Done!");
+    Ok(())
 }
